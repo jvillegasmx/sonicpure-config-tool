@@ -864,7 +864,7 @@ function showTab(name){
   document.querySelectorAll('.tab')[map[name]]?.classList.add('active');
   if(name==='json')renderJson();
   if(name==='energy'){renderEnergyMetrics();updateCharts();}
-  if(name==='emphasis')renderEmpTable();
+  if(name==='emphasis')renderEmpTable();   
 }
 
 buildSegments();  
