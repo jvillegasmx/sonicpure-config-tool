@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultrasound Algae Controller — Frequency Config Tool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:           #f8f7f4;
+    --surface:      #ffffff;
+    --surface2:     #f2f1ee;
+    --border:       rgba(0,0,0,0.10);
+    --border-mid:   rgba(0,0,0,0.18);
+    --text:         #1a1a1a;
+    --text-muted:   #6b6b68;
+    --text-faint:   #9b9b97;
+    --accent-a:     #185FA5;
+    --accent-a-bg:  #E6F1FB;
+    --accent-a-dk:  #0C447C;
+    --accent-b:     #534AB7;
+    --accent-b-bg:  #EEEDFE;
+    --accent-b-dk:  #3C3489;
+    --green:        #1D9E75;
+    --green-bg:     #E1F5EE;
+    --green-dk:     #085041;
+    --amber:        #BA7517;
+    --amber-bg:     #FAEEDA;
+    --amber-dk:     #633806;
+    --red:          #D85A30;
+    --radius:       8px;
+    --radius-lg:    12px;
+    --mono:         'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:           #141414;
+      --surface:      #1e1e1e;
+      --surface2:     #252525;
+      --border:       rgba(255,255,255,0.10);
+      --border-mid:   rgba(255,255,255,0.18);
+      --text:         #e8e8e5;
+      --text-muted:   #9b9b97;
+      --text-faint:   #6b6b68;
+      --accent-a:     #85B7EB;
+      --accent-a-bg:  #0C2540;
+      --accent-a-dk:  #B5D4F4;
+      --accent-b:     #AFA9EC;
+      --accent-b-bg:  #1e1c40;
+      --accent-b-dk:  #CECBF6;
+      --green:        #5DCAA5;
+      --green-bg:     #042e20;
+      --green-dk:     #9FE1CB;
+      --amber:        #EF9F27;
+      --amber-bg:     #2c1e00;
+      --amber-dk:     #FAC775;
+      --red:          #F0997B;
+    }
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 0.5px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo-mark {
+    width: 32px; height: 32px;
+    background: var(--accent-a-bg);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo-mark svg { width: 18px; height: 18px; }
+
+  header h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+
+  /* PIEZO ROW */
+  .piezo-row {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .piezo-row .group { display: flex; align-items: center; gap: 7px; }
+  .piezo-row label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+  .piezo-row input {
+    padding: 4px 8px; font-size: 12px;
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius);
+    background: var(--surface2);
+    color: var(--text);
+    width: 80px;
+  }
+  .piezo-row input:focus { outline: none; border-color: var(--accent-a); }
+  .divider { width: 0.5px; height: 24px; background: var(--border); flex-shrink: 0; }
+
+  /* METRICS */
+  .metrics-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .metric {
+    background: var(--surface2);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    min-width: 120px;
+    flex: 1;
+  }
+  .metric-label { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+  .metric-val { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+  .metric-sub { font-size: 10px; color: var(--text-faint); margin-top: 1px; }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--surface2);
+    border-radius: var(--radius);
+    padding: 3px;
+    margin-bottom: 16px;
+    width: fit-content;
+    flex-wrap: wrap;
+  }
+  .tab {
+    padding: 6px 16px;
+    font-size: 13px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--text); background: var(--surface); }
+  .tab.active { background: var(--surface); color: var(--text); font-weight: 500; box-shadow: 0 0 0 0.5px var(--border-mid); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* TABLES */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th {
+    text-align: left; font-weight: 500; font-size: 11px;
+    color: var(--text-muted); padding: 6px 8px;
+    border-bottom: 0.5px solid var(--border);
+    white-space: nowrap; background: var(--surface);
+    position: sticky; top: 56px;
+  }
+  td { padding: 5px 8px; border-bottom: 0.5px solid var(--border); vertical-align: middle; }
+  .seg-divider td {
+    padding: 5px 8px; font-size: 11px; font-weight: 600;
+    background: var(--surface2); color: var(--text-muted);
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  input[type=number] {
+    padding: 3px 6px; font-size: 12px;
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius);
+    background: var(--surface2); color: var(--text);
+    font-family: var(--mono);
+  }
+  input[type=number]:focus { outline: none; border-color: var(--accent-a); }
+  input[type=text] {
+    padding: 3px 6px; font-size: 12px;
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius);
+    background: var(--surface2); color: var(--text);
+  }
+  input.measured {
+    border-color: var(--green);
+    background: var(--green-bg);
+    color: var(--green-dk);
+  }
+  input[type=range] { width: 80px; accent-color: var(--accent-a); }
+  select {
+    padding: 4px 8px; font-size: 12px;
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius);
+    background: var(--surface2); color: var(--text);
+  }
+
+  /* TAGS & BADGES */
+  .tag {
+    display: inline-block; padding: 1px 7px;
+    border-radius: 4px; font-size: 11px; font-weight: 500;
+    white-space: nowrap;
+  }
+  .tag-a { background: var(--accent-a-bg); color: var(--accent-a-dk); }
+  .tag-b { background: var(--accent-b-bg); color: var(--accent-b-dk); }
+  .tag-model { background: var(--amber-bg); color: var(--amber-dk); }
+  .tag-measured { background: var(--green-bg); color: var(--green-dk); }
+  .tag-mech { background: var(--green-bg); color: var(--green-dk); }
+  .tag-oxid { background: var(--accent-b-bg); color: var(--accent-b-dk); }
+  .tag-mixed { background: var(--amber-bg); color: var(--amber-dk); }
+
+  .mult-val { font-size: 12px; font-weight: 600; min-width: 36px; display: inline-block; text-align: right; font-family: var(--mono); }
+
+  /* POWER BAR */
+  .pbar-wrap { width: 72px; height: 7px; background: var(--surface2); border-radius: 4px; display: inline-block; vertical-align: middle; overflow: hidden; }
+  .pbar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+
+  /* MONO TEXT */
+  .mono { font-family: var(--mono); }
+
+  /* BUTTONS */
+  .btn {
+    padding: 7px 14px; font-size: 12px; font-weight: 500;
+    border: 0.5px solid var(--border-mid);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--surface2); }
+  .btn:active { transform: scale(0.98); }
+  .btn-accent {
+    background: var(--accent-a-bg);
+    border-color: var(--accent-a);
+    color: var(--accent-a-dk);
+  }
+  .btn-accent:hover { filter: brightness(0.96); }
+  .btn-green {
+    background: var(--green-bg);
+    border-color: var(--green);
+    color: var(--green-dk);
+    font-weight: 600;
+  }
+  .btn-green:hover { filter: brightness(0.95); }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+
+  /* INFO BOX */
+  .info-box {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-left: 3px solid var(--accent-a);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
+
+  /* CHARTS */
+  .section-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+  .chart-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  @media (max-width: 640px) { .chart-pair { grid-template-columns: 1fr; } }
+  .chart-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+  }
+  .chart-card .section-title { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; font-weight: 500; }
+  .legend-row { display: flex; gap: 14px; font-size: 11px; color: var(--text-muted); flex-wrap: wrap; margin-top: 8px; }
+  .leg-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; vertical-align: middle; }
+
+  /* EXPORT TAB */
+  .enc-row {
+    display: flex; gap: 8px; align-items: center;
+    flex-wrap: wrap; margin-bottom: 12px;
+    padding: 12px 16px;
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+  }
+  .enc-row label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+  .dl-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .dl-fname { font-size: 11px; color: var(--text-faint); font-family: var(--mono); }
+  .json-box {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.6;
+    white-space: pre;
+    overflow-x: auto;
+    color: var(--text-muted);
+    max-height: 420px;
+    overflow-y: auto;
+  }
+
+  /* BAND HEADER ROWS */
+  .band-hdr-a { color: var(--accent-a-dk); }
+  .band-hdr-b { color: var(--accent-b-dk); }
+
+  footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 11px;
+    color: var(--text-faint);
+    border-top: 0.5px solid var(--border);
+    margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">
+    <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 2C9 2 4 5 4 9.5C4 12.5 6.5 15 9 15C11.5 15 14 12.5 14 9.5C14 5 9 2 9 2Z" stroke="#185FA5" stroke-width="1.2" fill="none"/>
+      <path d="M6 9.5C6 9.5 7 7 9 7C11 7 12 9.5 12 9.5" stroke="#185FA5" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+      <circle cx="9" cy="9.5" r="1.2" fill="#185FA5"/>
+    </svg>
+  </div>
+  <h1>Ultrasound Algae Controller</h1>
+  <span class="sub">Frequency Config Tool · v1.3</span>
+</header>
+
+<div class="container">
+
+  <!-- PIEZO PARAMS -->
+  <div class="piezo-row">
+    <div class="group"><label>Resonance A (Hz)</label><input type="number" id="res-a" value="38000" oninput="recalc()"></div>
+    <div class="group"><label>Q-factor A</label><input type="number" id="q-a" value="30" style="width:60px;" oninput="recalc()"></div>
+    <div class="divider"></div>
+    <div class="group"><label>Resonance B (Hz)</label><input type="number" id="res-b" value="198000" oninput="recalc()"></div>
+    <div class="group"><label>Q-factor B</label><input type="number" id="q-b" value="20" style="width:60px;" oninput="recalc()"></div>
+    <div class="divider"></div>
+    <div class="group"><label>P_max (W)</label><input type="number" id="p-max" value="10" step="0.5" style="width:60px;" oninput="recalc()"></div>
+    <div class="group"><label>P_min (W)</label><input type="number" id="p-min" value="1" step="0.1" style="width:60px;" oninput="recalc()"></div>
+  </div>
+
+  <!-- TOP METRICS -->
+  <div class="metrics-row" id="metrics"></div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('power')">Power table</button>
+    <button class="tab" onclick="showTab('emphasis')">Emphasis weights</button>
+    <button class="tab" onclick="showTab('energy')">Energy budget</button>
+    <button class="tab" onclick="showTab('json')">Export / JSON</button>
+  </div>
+
+  <!-- POWER TABLE -->
+  <div class="panel active" id="tab-power">
+    <div class="info-box">
+      Power modelled via Lorentzian curve: <em>P(f) = P_min + (P_max − P_min) × [1 − 1/(1 + ((f − f_res)/BW)²)]</em>, BW = f_res / Q.
+      Enter device-measured values in the <span class="tag tag-measured" style="font-size:10px;">measured W</span> column to override model estimates — these take precedence and are flagged in the JSON export.
+    </div>
+    <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Seg</th><th>Band</th><th>Label</th><th>f_centre (Hz)</th>
+        <th>Modelled W</th><th>Power bar</th>
+        <th>Measured W <span class="tag tag-measured" style="font-size:9px;">device</span></th>
+        <th>Active W</th><th>On-time (ms)</th><th>Energy/cycle (J)</th>
+      </tr></thead>
+      <tbody id="power-tbody"></tbody>
+      <tfoot id="power-tfoot"></tfoot>
+    </table>
+    </div>
+    <p style="font-size:11px;color:var(--text-faint);margin-top:8px;">Paste values downloaded from the device into the measured cells. Leave blank to use the model estimate.</p>
+  </div>
+
+  <!-- EMPHASIS -->
+  <div class="panel" id="tab-emphasis">
+    <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Seg</th><th>Band</th><th>Label</th><th>Active W</th>
+        <th>Multiplier</th><th>On-time (ms)</th><th>Energy/play (J)</th><th>% of total</th><th>Bucket weight</th>
+      </tr></thead>
+      <tbody id="emp-tbody"></tbody>
+      <tfoot id="emp-tfoot"></tfoot>
+    </table>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="setAllMult(1.0)">Reset all ×1.0</button>
+      <button class="btn" onclick="setPreset('vacuolate')">Vacuolate bloom</button>
+      <button class="btn" onclick="setPreset('mixed')">Mixed bloom</button>
+      <button class="btn" onclick="setPreset('green')">Green algae</button>
+    </div>
+  </div>
+
+  <!-- ENERGY BUDGET -->
+  <div class="panel" id="tab-energy">
+    <div class="metrics-row" id="energy-metrics"></div>
+
+    <div class="chart-pair">
+      <div class="chart-card">
+        <div class="section-title">Impedance curve — Band A · 24–54 kHz</div>
+        <div style="position:relative;height:180px;"><canvas id="imp-chart-a"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="section-title">Impedance curve — Band B · 195–205 kHz</div>
+        <div style="position:relative;height:180px;"><canvas id="imp-chart-b"></canvas></div>
+      </div>
+    </div>
+    <div class="legend-row" style="margin-bottom:20px;">
+      <span style="display:flex;align-items:center;gap:5px;"><span class="leg-dot" style="background:#378ADD;"></span>Modelled power curve</span>
+      <span style="display:flex;align-items:center;gap:5px;"><span class="leg-dot" style="background:#D85A30;border-radius:50%;"></span>Segment centre points</span>
+      <span style="display:flex;align-items:center;gap:5px;"><span class="leg-dot" style="background:#1D9E75;border-radius:50%;"></span>Device-measured overrides</span>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:20px;">
+      <div class="section-title">Energy per segment per cycle (J)</div>
+      <div style="position:relative;height:220px;"><canvas id="energy-chart"></canvas></div>
+      <div class="legend-row">
+        <span style="display:flex;align-items:center;gap:5px;"><span class="leg-dot" style="background:#378ADD;"></span>Band A</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span class="leg-dot" style="background:#7F77DD;"></span>Band B</span>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="section-title">Cumulative energy load over a full cycle</div>
+      <div style="position:relative;height:180px;"><canvas id="cumul-chart"></canvas></div>
+      <div class="legend-row">
+        <span style="display:flex;align-items:center;gap:5px;"><span class="leg-dot" style="background:#378ADD;"></span>Actual cumulative (J)</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span class="leg-dot" style="background:#B4B2A9;"></span>Ideal linear ramp — even load</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPORT / JSON -->
+  <div class="panel" id="tab-json">
+    <div class="enc-row">
+      <label>Encoding key (device secret)</label>
+      <input type="text" id="enc-key" value="ALG4E-K3Y-2024" style="width:180px;" oninput="renderJson()">
+      <button class="btn" id="enc-toggle" onclick="toggleEncode()">
+        <span id="enc-status-label">Plain JSON</span>
+      </button>
+      <span class="tag" id="enc-badge" style="background:var(--amber-bg);color:var(--amber-dk);">plain</span>
+      <span style="font-size:11px;color:var(--text-muted);" id="enc-note">Encoding off — output is human-readable</span>
+    </div>
+
+    <div class="dl-row">
+      <button class="btn btn-green" onclick="downloadFile()">⬇ Download config</button>
+      <button class="btn btn-accent" onclick="copyOutput()">Copy to clipboard</button>
+      <span class="dl-fname" id="dl-filename">config.json</span>
+    </div>
+
+    <div class="info-box" style="border-left-color:var(--amber);">
+      <strong>Encoding method:</strong> XOR cipher + Base64 envelope. The JSON payload is XOR'd byte-by-byte against a cyclic key string, then Base64-encoded into a wrapper object. The device firmware holds the same key and reverses the process on boot. This is obfuscation — not full cryptographic encryption — but it prevents casual inspection and protects the frequency/segment structure from plain-text discovery. For stronger protection, replace the XOR step with AES-128 in firmware; the JSON envelope structure stays identical.
+    </div>
+
+    <div class="json-box" id="json-out"></div>
+  </div>
+
+</div><!-- /container -->
+
+<footer>
+  Ultrasound Algae Controller · Frequency Config Tool · Schema v1.3 &nbsp;·&nbsp;
+  Power model: Lorentzian · Bands: 24–54 kHz (mechanical) + 195–205 kHz (oxidative)
+</footer>
+
+<script>
+const BAND_A={fmin:24000,fmax:54000};
+const BAND_B={fmin:195000,fmax:205000};
+const TOTAL_A=3499,TOTAL_B=1001;
+
+const segDataA=[
+  {label:'vacuole-resonance-low',    mechanism:'mechanical',targets:'Microcystis aeruginosa, Dolichospermum'},
+  {label:'vacuole-resonance-mid-lo', mechanism:'mechanical',targets:'Microcystis aeruginosa, Anabaena'},
+  {label:'vacuole-resonance-mid',    mechanism:'mechanical',targets:'Anabaena, Aphanizomenon'},
+  {label:'vacuole-resonance-mid-hi', mechanism:'mechanical',targets:'Aphanizomenon, Planktothrix'},
+  {label:'cell-wall-stress-lo',      mechanism:'mechanical',targets:'Planktothrix, Oscillatoria'},
+  {label:'cell-wall-stress-mid',     mechanism:'mechanical',targets:'Oscillatoria, Lyngbya'},
+  {label:'cell-wall-stress-hi',      mechanism:'mechanical',targets:'Lyngbya, Cylindrospermopsis'},
+  {label:'buoyancy-disruption-lo',   mechanism:'mechanical',targets:'Cylindrospermopsis, Raphidiopsis'},
+  {label:'buoyancy-disruption-mid',  mechanism:'mechanical',targets:'Pseudanabaena, Synechococcus'},
+  {label:'photosynthesis-inhibit-lo',mechanism:'mixed',     targets:'Spirogyra, Ulothrix'},
+  {label:'photosynthesis-inhibit-mid',mechanism:'mixed',    targets:'Cladophora, Spirogyra'},
+  {label:'photosynthesis-inhibit-hi',mechanism:'mixed',     targets:'Chlorella (large), Scenedesmus'},
+];
+const segDataB=[
+  {label:'radical-oxidation-lo',    mechanism:'oxidative',targets:'Chlorella vulgaris, Scenedesmus obliquus'},
+  {label:'radical-oxidation-mid-lo',mechanism:'oxidative',targets:'Chlorella, Synechococcus'},
+  {label:'radical-oxidation-mid-hi',mechanism:'oxidative',targets:'Synechococcus, diatoms'},
+  {label:'radical-oxidation-hi',    mechanism:'oxidative',targets:'Diatoms, mixed biofilm'},
+];
+
+let segments=[],multipliers=[],measuredW={};
+let charts={},encodeEnabled=false;
+
+function lorentzian(f,fres,Q,pmin,pmax){
+  const bw=fres/Q,df=(f-fres)/bw;
+  return pmin+(pmax-pmin)*(1-1/(1+df*df));
+}
+function gv(id,def){return +document.getElementById(id).value||def;}
+function modelledW(s){
+  const fc=(s.fstart+s.fend)/2;
+  return s.band==='A'
+    ?lorentzian(fc,gv('res-a',38000),gv('q-a',30),gv('p-min',1),gv('p-max',10))
+    :lorentzian(fc,gv('res-b',198000),gv('q-b',20),gv('p-min',1),gv('p-max',10));
+}
+function activeW(i){const m=measuredW[i];return(m!==undefined&&!isNaN(m))?m:modelledW(segments[i]);}
+
+function buildSegments(){
+  segments=[];
+  const nA=12,nB=4;
+  const bA=[];
+  for(let i=0;i<=nA;i++) bA.push(Math.round(BAND_A.fmin*Math.pow(BAND_A.fmax/BAND_A.fmin,i/nA)));
+  for(let i=0;i<nA;i++){
+    const fs=bA[i],fe=bA[i+1];
+    const frac=Math.log(fe/fs)/Math.log(BAND_A.fmax/BAND_A.fmin);
+    segments.push({id:segments.length+1,band:'A',fstart:fs,fend:fe,count:Math.round(TOTAL_A*frac),...segDataA[Math.min(i,11)]});
+  }
+  const rB=BAND_B.fmax-BAND_B.fmin;
+  for(let i=0;i<nB;i++){
+    segments.push({id:segments.length+1,band:'B',
+      fstart:Math.round(BAND_B.fmin+rB*i/nB),fend:Math.round(BAND_B.fmin+rB*(i+1)/nB),
+      count:Math.round(TOTAL_B/nB),...segDataB[Math.min(i,3)]});
+  }
+  while(multipliers.length<segments.length) multipliers.push(1.0);
+  multipliers=multipliers.slice(0,segments.length);
+}
+
+function recalc(){renderMetrics();renderEnergyMetrics();renderPowerTable();renderEmpTable();updateCharts();renderJson();}
+
+function renderMetrics(){
+  const baseOn=600;
+  let totalJ=0,peakW=0;
+  segments.forEach((_,i)=>{const w=activeW(i);totalJ+=w*(baseOn*multipliers[i]/1000)*segments[i].count;if(w>peakW)peakW=w;});
+  const cycleSec=segments.reduce((a,s)=>a+s.count,0);
+  const cycleMin=(cycleSec/60).toFixed(1);
+  document.getElementById('metrics').innerHTML=`
+    <div class="metric"><div class="metric-label">Avg power draw</div><div class="metric-val">${(totalJ/cycleSec).toFixed(2)} W</div><div class="metric-sub">over full cycle</div></div>
+    <div class="metric"><div class="metric-label">Peak segment power</div><div class="metric-val">${peakW.toFixed(2)} W</div><div class="metric-sub">worst-case segment</div></div>
+    <div class="metric"><div class="metric-label">Energy / cycle</div><div class="metric-val">${totalJ.toFixed(0)} J</div><div class="metric-sub">${(totalJ/3600).toFixed(2)} Wh</div></div>
+    <div class="metric"><div class="metric-label">Cycle duration</div><div class="metric-val">${cycleMin} min</div><div class="metric-sub">${cycleSec.toFixed(0)} s</div></div>`;
+}
+
+function renderEnergyMetrics(){
+  const el=document.getElementById('energy-metrics');
+  if(!el)return;
+  const baseOn=600;let totA=0,totB=0;
+  segments.forEach((s,i)=>{const e=activeW(i)*(baseOn*multipliers[i]/1000)*s.count;if(s.band==='A')totA+=e;else totB+=e;});
+  const tot=totA+totB,cycleSec=segments.reduce((a,s)=>a+s.count,0);
+  const measCount=Object.keys(measuredW).filter(k=>!isNaN(measuredW[k])).length;
+  el.innerHTML=`
+    <div class="metric"><div class="metric-label">Band A energy</div><div class="metric-val">${totA.toFixed(0)} J</div><div class="metric-sub">${tot>0?(totA/tot*100).toFixed(1):0}% · mechanical</div></div>
+    <div class="metric"><div class="metric-label">Band B energy</div><div class="metric-val">${totB.toFixed(0)} J</div><div class="metric-sub">${tot>0?(totB/tot*100).toFixed(1):0}% · oxidative</div></div>
+    <div class="metric"><div class="metric-label">Total / cycle</div><div class="metric-val">${tot.toFixed(0)} J</div><div class="metric-sub">${(tot/3600).toFixed(3)} Wh</div></div>
+    <div class="metric"><div class="metric-label">Cycle duration</div><div class="metric-val">${(cycleSec/60).toFixed(1)} min</div><div class="metric-sub">${cycleSec.toFixed(0)} s</div></div>
+    <div class="metric"><div class="metric-label">Measured overrides</div><div class="metric-val">${measCount}/${segments.length}</div><div class="metric-sub">${measCount===0?'model only':measCount===segments.length?'fully measured':'partial'}</div></div>`;
+}
+
+function pBar(w,maxW){
+  const pct=Math.min(100,(w/maxW)*100);
+  const col=pct>75?'#D85A30':pct>45?'#EF9F27':'#1D9E75';
+  return `<div class="pbar-wrap"><div class="pbar-fill" style="width:${pct.toFixed(1)}%;background:${col};"></div></div>`;
+}
+function mechTag(m){
+  if(m==='mechanical')return`<span class="tag tag-mech">mechanical</span>`;
+  if(m==='oxidative')return`<span class="tag tag-oxid">oxidative</span>`;
+  return`<span class="tag tag-mixed">mixed</span>`;
+}
+
+function renderPowerTable(){
+  const tbody=document.getElementById('power-tbody'),tfoot=document.getElementById('power-tfoot');
+  const baseOn=600;let maxW=0;
+  segments.forEach((_,i)=>{const w=modelledW(segments[i]);if(w>maxW)maxW=w;});
+  Object.values(measuredW).forEach(v=>{if(!isNaN(v)&&v>maxW)maxW=v;});
+  let html='',lastBand=null,totalJ=0;
+  segments.forEach((s,i)=>{
+    if(s.band!==lastBand){
+      const cls=s.band==='A'?'band-hdr-a':'band-hdr-b';
+      const mech=s.band==='A'?'gas vacuole disruption + cell wall stress':'hydroxyl radical oxidation + membrane damage';
+      html+=`<tr class="seg-divider"><td colspan="10" class="${cls}">Band ${s.band} — ${mech}</td></tr>`;
+      lastBand=s.band;
+    }
+    const mw=modelledW(s),aw=activeW(i);
+    const onMs=Math.round(baseOn*multipliers[i]);
+    const e=aw*(onMs/1000)*s.count;totalJ+=e;
+    const hasMeas=measuredW[i]!==undefined&&!isNaN(measuredW[i]);
+    const srcTag=hasMeas?`<span class="tag tag-measured" style="font-size:10px;">measured</span>`:`<span class="tag tag-model" style="font-size:10px;">model</span>`;
+    const bTag=s.band==='A'?'tag-a':'tag-b';
+    html+=`<tr>
+      <td style="font-weight:600;">${s.id}</td>
+      <td><span class="tag ${bTag}">${s.band}</span></td>
+      <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${s.label}">${s.label}</td>
+      <td class="mono" style="font-size:11px;">${Math.round((s.fstart+s.fend)/2).toLocaleString()}</td>
+      <td class="mono" style="font-size:11px;">${mw.toFixed(2)}</td>
+      <td>${pBar(aw,maxW)}</td>
+      <td><input type="number" class="${hasMeas?'measured':''}" id="mw-${i}" value="${hasMeas?measuredW[i].toFixed(2):''}" placeholder="${mw.toFixed(2)}" step="0.1" style="width:68px;" oninput="onMeasured(${i},this.value)"></td>
+      <td class="mono" style="font-size:11px;">${aw.toFixed(2)} ${srcTag}</td>
+      <td class="mono" style="font-size:11px;">${onMs}</td>
+      <td class="mono" style="font-size:11px;">${e.toFixed(1)}</td>
+    </tr>`;
+  });
+  tbody.innerHTML=html;
+  tfoot.innerHTML=`<tr style="font-weight:600;border-top:1px solid var(--border-mid);">
+    <td colspan="9" style="padding:6px 8px;font-size:11px;color:var(--text-muted);">Total energy per cycle</td>
+    <td class="mono" style="font-size:12px;padding:6px 8px;">${totalJ.toFixed(1)} J</td></tr>`;
+}
+
+function onMeasured(i,val){
+  const v=parseFloat(val);
+  if(val===''||isNaN(v)){delete measuredW[i];document.getElementById('mw-'+i)?.classList.remove('measured');}
+  else{measuredW[i]=v;document.getElementById('mw-'+i)?.classList.add('measured');}
+  recalc();
+}
+
+function renderEmpTable(){
+  const tbody=document.getElementById('emp-tbody'),tfoot=document.getElementById('emp-tfoot');
+  if(!tbody)return;
+  const baseOn=600;let totalE=0;
+  const allE=segments.map((s,i)=>{const e=activeW(i)*(Math.round(baseOn*multipliers[i])/1000)*s.count;totalE+=e;return e;});
+  let html='',lastBand=null;
+  segments.forEach((s,i)=>{
+    if(s.band!==lastBand){
+      const cls=s.band==='A'?'band-hdr-a':'band-hdr-b';
+      html+=`<tr class="seg-divider"><td colspan="9" class="${cls}">Band ${s.band}</td></tr>`;
+      lastBand=s.band;
+    }
+    const aw=activeW(i),m=multipliers[i],onMs=Math.round(baseOn*m),e=allE[i];
+    const pct=totalE>0?(e/totalE*100):0;
+    let empNote='normal';
+    if(m>1.3)empNote='high +'+Math.round((m-1)*100)+'%';
+    else if(m>1.0)empNote='+'+Math.round((m-1)*100)+'%';
+    else if(m<1.0)empNote='-'+Math.round((1-m)*100)+'%';
+    const bTag=s.band==='A'?'tag-a':'tag-b';
+    html+=`<tr>
+      <td style="font-weight:600;">${s.id}</td>
+      <td><span class="tag ${bTag}">${s.band}</span></td>
+      <td style="font-size:11px;">${s.label}</td>
+      <td class="mono" style="font-size:11px;">${aw.toFixed(2)}</td>
+      <td><input type="range" min="0.5" max="2.0" step="0.05" value="${m.toFixed(2)}"
+        oninput="multipliers[${i}]=parseFloat(this.value);document.getElementById('mv-${i}').textContent='×'+parseFloat(this.value).toFixed(2);recalc();">
+        <span class="mult-val" id="mv-${i}">×${m.toFixed(2)}</span></td>
+      <td class="mono" style="font-size:11px;">${onMs}</td>
+      <td class="mono" style="font-size:11px;">${e.toFixed(1)}</td>
+      <td class="mono" style="font-size:11px;">${pct.toFixed(1)}%</td>
+      <td class="mono" style="font-size:11px;">${(aw*m).toFixed(2)}</td>
+    </tr>`;
+  });
+  tbody.innerHTML=html;
+  tfoot.innerHTML=`<tr style="font-weight:600;border-top:1px solid var(--border-mid);">
+    <td colspan="6" style="padding:6px 8px;font-size:11px;color:var(--text-muted);">Total</td>
+    <td class="mono" style="padding:6px 8px;">${totalE.toFixed(1)} J</td>
+    <td class="mono" style="padding:6px 8px;">100%</td><td></td></tr>`;
+}
+
+function setAllMult(v){multipliers=multipliers.map(()=>v);recalc();}
+function setPreset(name){
+  segments.forEach((s,i)=>{
+    const nA=segments.filter(x=>x.band==='A').length,pos=i/nA;
+    if(name==='vacuolate') multipliers[i]=s.band==='A'?(pos<0.33?1.4:pos<0.66?1.2:1.0):0.7;
+    else if(name==='mixed') multipliers[i]=s.band==='A'?(pos<0.5?1.2:1.1):1.1;
+    else if(name==='green') multipliers[i]=s.band==='A'?(pos<0.5?0.8:pos<0.83?1.2:1.4):1.5;
+    multipliers[i]=Math.round(multipliers[i]*20)/20;
+  });
+  recalc();
+}
+
+function isDark(){return window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;}
+function chartColors(){return isDark()?{grid:'rgba(255,255,255,0.06)',tick:'#9b9b97'}:{grid:'rgba(0,0,0,0.05)',tick:'#6b6b68'};}
+
+function makeImpedChart(cid,band,segsForBand){
+  const nPts=60,fmin=band==='A'?BAND_A.fmin:BAND_B.fmin,fmax=band==='A'?BAND_A.fmax:BAND_B.fmax;
+  const resHz=band==='A'?gv('res-a',38000):gv('res-b',198000);
+  const Q=band==='A'?gv('q-a',30):gv('q-b',20);
+  const pmin=gv('p-min',1),pmax=gv('p-max',10);
+  const labels=[],curve=[];
+  for(let i=0;i<=nPts;i++){
+    const f=fmin+(fmax-fmin)*i/nPts;
+    labels.push((f/1000).toFixed(1)+'k');
+    curve.push(+lorentzian(f,resHz,Q,pmin,pmax).toFixed(3));
+  }
+  const mkPts=arr=>Array(nPts+1).fill(null).map((_,idx)=>{const c=arr.find(p=>Math.round(p.x)===idx);return c?c.y:null;});
+  const centres=segsForBand.map(({s,i})=>({x:(((s.fstart+s.fend)/2-fmin)/(fmax-fmin)*nPts),y:+activeW(i).toFixed(3)}));
+  const measPts=segsForBand.filter(({i})=>measuredW[i]!==undefined&&!isNaN(measuredW[i])).map(({s,i})=>({x:(((s.fstart+s.fend)/2-fmin)/(fmax-fmin)*nPts),y:measuredW[i]}));
+  const cc=chartColors();
+  if(charts[cid]){charts[cid].destroy();}
+  charts[cid]=new Chart(document.getElementById(cid),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'modelled (W)',data:curve,borderColor:band==='A'?'#378ADD':'#7F77DD',borderWidth:2,pointRadius:0,tension:0.4,fill:false},
+      {label:'centres',data:mkPts(centres),borderColor:'#D85A30',backgroundColor:'#D85A30',borderWidth:0,pointRadius:5,pointStyle:'circle',showLine:false},
+      {label:'measured',data:mkPts(measPts),borderColor:'#1D9E75',backgroundColor:'#1D9E75',borderWidth:0,pointRadius:6,pointStyle:'rectRot',showLine:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y?.toFixed(2)} W`}}},
+      scales:{
+        x:{ticks:{maxTicksLimit:6,font:{size:10},color:cc.tick},grid:{color:cc.grid},border:{display:false}},
+        y:{min:0,ticks:{font:{size:10},color:cc.tick},title:{display:true,text:'W',font:{size:10},color:cc.tick},grid:{color:cc.grid},border:{display:false}}
+      }}
+  });
+}
+
+function makeEnergyChart(){
+  const baseOn=600;
+  const cc=chartColors();
+  const labels=segments.map(s=>s.id.toString());
+  const colors=segments.map(s=>s.band==='A'?'#378ADD':'#7F77DD');
+  const data=segments.map((s,i)=>+(activeW(i)*(Math.round(baseOn*multipliers[i])/1000)*s.count).toFixed(1));
+  if(charts['energy-chart']){charts['energy-chart'].destroy();}
+  charts['energy-chart']=new Chart(document.getElementById('energy-chart'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Energy (J)',data,backgroundColor:colors,borderWidth:0,borderRadius:3}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.y.toFixed(1)} J`}}},
+      scales:{
+        x:{ticks:{font:{size:10},color:cc.tick},grid:{display:false},title:{display:true,text:'Segment',font:{size:10},color:cc.tick},border:{display:false}},
+        y:{ticks:{font:{size:10},color:cc.tick},title:{display:true,text:'Energy (J)',font:{size:10},color:cc.tick},grid:{color:cc.grid},border:{display:false}}
+      }}
+  });
+}
+
+function makeCumulChart(){
+  const baseOn=600;const cc=chartColors();
+  let cumul=0;const data=[],labels=[];
+  segments.forEach((s,i)=>{cumul+=activeW(i)*(Math.round(baseOn*multipliers[i])/1000)*s.count;data.push(+cumul.toFixed(1));labels.push(s.id.toString());});
+  const totalE=cumul;
+  const idealData=segments.map((_,i)=>+((i+1)/segments.length*totalE).toFixed(1));
+  if(charts['cumul-chart']){charts['cumul-chart'].destroy();}
+  charts['cumul-chart']=new Chart(document.getElementById('cumul-chart'),{
+    type:'line',
+    data:{labels,datasets:[
+      {label:'Actual cumulative (J)',data,borderColor:'#378ADD',borderWidth:2,pointRadius:3,tension:0.2,fill:false},
+      {label:'Ideal linear',data:idealData,borderColor:'#B4B2A9',borderWidth:1.5,borderDash:[4,4],pointRadius:0,fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)} J`}}},
+      scales:{
+        x:{ticks:{font:{size:10},color:cc.tick},grid:{display:false},title:{display:true,text:'Segment (playback order)',font:{size:10},color:cc.tick},border:{display:false}},
+        y:{ticks:{font:{size:10},color:cc.tick},title:{display:true,text:'Cumulative (J)',font:{size:10},color:cc.tick},grid:{color:cc.grid},border:{display:false}}
+      }}
+  });
+}
+
+function updateCharts(){
+  const segsA=segments.map((s,i)=>({s,i})).filter(x=>x.s.band==='A');
+  const segsB=segments.map((s,i)=>({s,i})).filter(x=>x.s.band==='B');
+  makeImpedChart('imp-chart-a','A',segsA);
+  makeImpedChart('imp-chart-b','B',segsB);
+  makeEnergyChart();
+  makeCumulChart();
+}
+
+function buildJsonObject(){
+  const baseOn=600,baseOff=400;
+  const segsJson=segments.map((s,i)=>{
+    const mw=+modelledW(s).toFixed(3);
+    const hasMeas=measuredW[i]!==undefined&&!isNaN(measuredW[i]);
+    const obj={id:s.id,band:s.band,label:s.label,mechanism:s.mechanism,
+      f_start_hz:s.fstart,f_end_hz:s.fend,f_centre_hz:Math.round((s.fstart+s.fend)/2),
+      freq_count:s.count,step_hz:s.band==='B'?10:Math.round((s.fend-s.fstart)/Math.max(s.count-1,1)),
+      power:{modelled_w:mw,source:hasMeas?'measured':'model'},
+      duration_multiplier:parseFloat(multipliers[i].toFixed(2)),
+      on_time_ms:Math.round(baseOn*multipliers[i]),
+      energy_per_cycle_j:+(activeW(i)*(Math.round(baseOn*multipliers[i])/1000)*s.count).toFixed(2),
+      target_species:s.targets};
+    if(hasMeas) obj.power.measured_w=+measuredW[i].toFixed(3);
+    return obj;
+  });
+  const totalJ=segments.reduce((a,s,i)=>a+activeW(i)*(Math.round(600*multipliers[i])/1000)*s.count,0);
+  return{
+    schema_version:"1.3",device:"ultrasound-algae-controller",
+    piezo_model:{
+      band_a:{resonant_hz:gv('res-a',38000),q_factor:gv('q-a',30)},
+      band_b:{resonant_hz:gv('res-b',198000),q_factor:gv('q-b',20)},
+      p_max_w:gv('p-max',10),p_min_w:gv('p-min',1),model:"lorentzian",
+      note:"measured_w values in segments override model when present"
+    },
+    frequency_table:{
+      total_frequencies:TOTAL_A+TOTAL_B,
+      total_energy_per_cycle_j:+totalJ.toFixed(2),
+      total_energy_per_cycle_wh:+(totalJ/3600).toFixed(4),
+      bands:{
+        A:{label:"mechanical-action",f_min_hz:24000,f_max_hz:54000,freq_count:TOTAL_A,segment_count:12},
+        B:{label:"oxidative-action",f_min_hz:195000,f_max_hz:205000,step_hz:10,freq_count:TOTAL_B,segment_count:4}
+      },
+      segments:segsJson
+    },
+    schedule:{base_on_ms:baseOn,base_off_ms:baseOff,energy_buckets:50,sliding_window_size:10,shuffle_mode:"bucket_interleaved",band_mix_ratio:0.9}
+  };
+}
+
+function xorEncode(str,key){
+  const kb=[];for(let i=0;i<key.length;i++)kb.push(key.charCodeAt(i));
+  const out=[];for(let i=0;i<str.length;i++)out.push(str.charCodeAt(i)^kb[i%kb.length]);
+  return btoa(String.fromCharCode(...out));
+}
+
+function buildOutput(){
+  const cfg=buildJsonObject();
+  const plain=JSON.stringify(cfg,null,2);
+  if(!encodeEnabled)return{text:plain,isEncoded:false};
+  const key=document.getElementById('enc-key').value||'ALG4E-K3Y-2024';
+  const encoded=xorEncode(plain,key);
+  return{text:JSON.stringify({encoded:true,schema_version:"1.3",device:"ultrasound-algae-controller",payload:encoded},null,2),isEncoded:true};
+}
+
+function renderJson(){
+  const{text,isEncoded}=buildOutput();
+  const el=document.getElementById('json-out');
+  if(el)el.textContent=text;
+  const fn=document.getElementById('dl-filename');
+  if(fn)fn.textContent=isEncoded?'config_encoded.json':'config.json';
+}
+
+function toggleEncode(){
+  encodeEnabled=!encodeEnabled;
+  document.getElementById('enc-status-label').textContent=encodeEnabled?'Encoded':'Plain JSON';
+  const badge=document.getElementById('enc-badge');
+  const note=document.getElementById('enc-note');
+  const key=document.getElementById('enc-key');
+  if(encodeEnabled){
+    badge.textContent='encoded';badge.style.background='var(--green-bg)';badge.style.color='var(--green-dk)';
+    note.textContent='Payload is XOR+Base64 encoded — device key required to decode';
+    key.style.borderColor='var(--green)';
+  }else{
+    badge.textContent='plain';badge.style.background='var(--amber-bg)';badge.style.color='var(--amber-dk)';
+    note.textContent='Encoding off — output is human-readable';
+    key.style.borderColor='';
+  }
+  renderJson();
+}
+
+function downloadFile(){
+  const{text,isEncoded}=buildOutput();
+  const fname=isEncoded?'config_encoded.json':'config.json';
+  const blob=new Blob([text],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=fname;
+  document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(url);a.remove();},100);
+}
+
+function copyOutput(){
+  const{text}=buildOutput();
+  navigator.clipboard.writeText(text).catch(()=>{});
+}
+
+function showTab(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const map={power:0,emphasis:1,energy:2,json:3};
+  document.querySelectorAll('.tab')[map[name]]?.classList.add('active');
+  if(name==='json')renderJson();
+  if(name==='energy'){renderEnergyMetrics();updateCharts();}
+  if(name==='emphasis')renderEmpTable();
+}
+
+buildSegments();
+recalc();
+setTimeout(()=>updateCharts(),100);
+</script>
+</body>
+</html>
